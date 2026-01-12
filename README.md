@@ -1,164 +1,73 @@
 # MotorGear Monitor
 
-A lightweight industrial monitoring dashboard for electric motor and gearbox systems, designed to run locally on Raspberry Pi alongside Node-RED.
+Industrial monitoring dashboard for electric motor and gearbox systems.
 
-## Features
+## Deployment Options
 
-- **Real-time Signal Monitoring**: Track 7 key signals via WebSocket
-- **Threshold-based Alerts**: Visual status indicators (normal/warning/alarm)
-- **Fault Tolerant**: Gracefully handles missing or delayed signals
-- **Node-RED WebSocket Integration**: Direct browser-to-Node-RED communication
-- **Raspberry Pi Optimized**: Lightweight, low-resource footprint
-- **24/7 Operation**: Designed for continuous industrial use
-- **Demo Mode**: Auto-enables when no WebSocket connection is available
+### Option 1: Lovable Publish (Recommended for Testing)
+1. Click **Publish** in Lovable
+2. Access the URL from any browser
+3. Dashboard auto-connects to `ws://<hostname>:1880/ws/signals`
 
-## Monitored Signals
+### Option 2: Build & Deploy to Raspberry Pi
 
-| Signal | Unit | Warning | Alarm |
-|--------|------|---------|-------|
-| Motor Voltage | V | 420 | 450 |
-| Motor Current | A | 15 | 20 |
-| Motor Power | W | 5000 | 6000 |
-| Motor Winding Temp | °C | 75 | 90 |
-| Gearbox Oil Temp | °C | 70 | 85 |
-| Motor Vibration | mm/s | 4.5 | 7.1 |
-| Gearbox Vibration | mm/s | 4.5 | 7.1 |
+**On your computer** (not the Pi):
+```bash
+# Clone and build
+git clone <your-repo-url>
+cd motorgear-monitor
+npm install
+npm run build
 
-## Quick Start
+# Copy to Pi
+scp -r dist nginx.conf docker-compose.yml pi@<PI_IP>:/home/pi/motorgear/
+```
 
-### Option 1: Use Lovable's Published URL
+**On Raspberry Pi:**
+```bash
+cd /home/pi/motorgear
+docker-compose up -d
+```
 
-1. Click **Publish** in Lovable to deploy the dashboard
-2. Access the published URL from any device on your network
-3. Configure the WebSocket URL (see below)
+Access at `http://<PI_IP>:8082`
 
-### Option 2: Local Deployment on Raspberry Pi
+### Option 3: Simple HTTP Server (No Docker)
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/yourusername/motorgear-monitor.git
-   cd motorgear-monitor
-   ```
+**On Pi after copying dist folder:**
+```bash
+# Using Python
+cd /home/pi/motorgear/dist
+python3 -m http.server 8082
 
-2. **Install and build**
-   ```bash
-   npm install
-   npm run build
-   ```
+# Or using Node
+npx serve -l 8082
+```
 
-3. **Serve the `dist` folder** using nginx, Apache, or a simple HTTP server:
-   ```bash
-   npx serve dist -l 8082
-   ```
-
-4. **Access the dashboard** at `http://raspberry-pi-ip:8082`
+---
 
 ## Node-RED WebSocket Setup
 
-### 1. Add WebSocket Nodes to Node-RED
-
-In Node-RED, add a **websocket out** node:
-- Type: `Listen on`
+Add a **websocket out** node in Node-RED:
+- Type: Listen on
 - Path: `/ws/signals`
 
-### 2. Send Signal Data
-
-Connect your sensor data to a **function** node that formats the message:
-
-```javascript
-// Format signal for dashboard
-msg.payload = {
-    signalId: "motor_voltage",  // Signal ID
-    value: msg.payload,          // Numeric value
-    timestamp: new Date().toISOString()  // Optional
-};
-return msg;
-```
-
-### 3. Valid Signal IDs
-
-- `motor_voltage` - Motor voltage in Volts
-- `motor_current` - Motor current in Amperes
-- `motor_power` - Motor power in Watts
-- `motor_temp` - Motor winding temperature in °C
-- `gearbox_temp` - Gearbox oil temperature in °C
-- `motor_vibration` - Motor vibration in mm/s
-- `gearbox_vibration` - Gearbox vibration in mm/s
-
-### Example Node-RED Flow
-
+Send JSON messages:
 ```json
-[
-    {
-        "id": "inject1",
-        "type": "inject",
-        "repeat": "5",
-        "payload": "400",
-        "payloadType": "num",
-        "wires": [["func1"]]
-    },
-    {
-        "id": "func1",
-        "type": "function",
-        "func": "msg.payload = {signalId: 'motor_voltage', value: parseFloat(msg.payload)}; return msg;",
-        "wires": [["ws1"]]
-    },
-    {
-        "id": "ws1",
-        "type": "websocket out",
-        "path": "/ws/signals",
-        "wholemsg": "true"
-    }
-]
+{"signalId": "motor_voltage", "value": 405.5}
 ```
+
+Valid signal IDs:
+- `motor_voltage`, `motor_current`, `motor_power`
+- `motor_temp`, `gearbox_temp`
+- `motor_vibration`, `gearbox_vibration`
 
 ## Custom WebSocket URL
 
-By default, the dashboard connects to:
-```
-ws://<current-hostname>:1880/ws/signals
-```
-
-To use a custom URL, open browser DevTools console and run:
+In browser console:
 ```javascript
 localStorage.setItem('wsUrl', 'ws://192.168.1.100:1880/ws/signals');
 location.reload();
 ```
-
-## Architecture
-
-```
-┌─────────────────┐     WebSocket      ┌──────────────────┐
-│    Node-RED     │ ◄───────────────►  │    Browser       │
-│  (Port 1880)    │                    │  (Dashboard)     │
-└─────────────────┘                    └──────────────────┘
-         │                                      │
-         └──────────────────────────────────────┘
-              Both on local network / same Pi
-```
-
-## Demo Mode
-
-The dashboard automatically enables **Demo Mode** after 10 seconds if no WebSocket connection is established. This shows simulated data for testing.
-
-Toggle Demo Mode manually using the button in the header.
-
-## Development
-
-```bash
-npm install
-npm run dev
-```
-
-## Technologies
-
-- React + TypeScript + Vite
-- Tailwind CSS
-- WebSocket for real-time communication
-
-## License
-
-MIT License
 
 ---
 
