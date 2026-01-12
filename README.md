@@ -1,73 +1,182 @@
-# Welcome to your Lovable project
+# MotorGear Monitor
 
-## Project info
+A lightweight industrial monitoring dashboard for electric motor and gearbox systems, designed to run locally on Raspberry Pi alongside Node-RED.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## Features
 
-## How can I edit this code?
+- **Real-time Signal Monitoring**: Track 7 key signals for motor and gearbox health
+- **Threshold-based Alerts**: Visual status indicators (normal/warning/alarm)
+- **Fault Tolerant**: Gracefully handles missing or delayed signals
+- **Node-RED Integration**: Simple REST API for independent signal updates
+- **Raspberry Pi Optimized**: Lightweight, low-resource footprint
+- **24/7 Operation**: Designed for continuous industrial use
 
-There are several ways of editing your application.
+## Monitored Signals
 
-**Use Lovable**
+| Signal | Unit | Warning | Alarm |
+|--------|------|---------|-------|
+| Motor Voltage | V | 420 | 450 |
+| Motor Current | A | 15 | 20 |
+| Motor Power | W | 5000 | 6000 |
+| Motor Winding Temp | °C | 75 | 90 |
+| Gearbox Oil Temp | °C | 70 | 85 |
+| Motor Vibration | mm/s | 4.5 | 7.1 |
+| Gearbox Vibration | mm/s | 4.5 | 7.1 |
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+## Quick Start (Raspberry Pi)
 
-Changes made via Lovable will be committed automatically to this repo.
+### Prerequisites
 
-**Use your preferred IDE**
+- Raspberry Pi 4 (2GB+ RAM recommended)
+- Docker and Docker Compose installed
+- Node-RED running (for data input)
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+### Installation
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/yourusername/motorgear-monitor.git
+   cd motorgear-monitor
+   ```
 
-Follow these steps:
+2. **Deploy with Docker Compose**
+   ```bash
+   docker-compose up -d
+   ```
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+3. **Access the dashboard**
+   Open `http://raspberry-pi-ip:8082` in your browser
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+### Using Portainer
 
-# Step 3: Install the necessary dependencies.
-npm i
+1. In Portainer, go to **Stacks** → **Add Stack**
+2. Name: `motorgear-monitor`
+3. Build method: **Repository**
+4. Repository URL: `https://github.com/yourusername/motorgear-monitor`
+5. Click **Deploy the stack**
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+## Node-RED Integration
+
+### Sending Signal Updates
+
+Each signal can be updated independently via HTTP POST requests. This allows Node-RED to update individual readings as they become available.
+
+**Endpoint:** `POST http://localhost:8082/api/signal`
+
+**Payload:**
+```json
+{
+  "signalId": "motor_voltage",
+  "value": 405.5,
+  "timestamp": "2024-01-15T10:30:00Z"
+}
+```
+
+### Valid Signal IDs
+
+- `motor_voltage` - Motor voltage in Volts
+- `motor_current` - Motor current in Amperes
+- `motor_power` - Motor power in Watts
+- `motor_temp` - Motor winding temperature in °C
+- `gearbox_temp` - Gearbox oil temperature in °C
+- `motor_vibration` - Motor vibration in mm/s
+- `gearbox_vibration` - Gearbox vibration in mm/s
+
+### Example Node-RED Flow
+
+```json
+[
+  {
+    "id": "inject_voltage",
+    "type": "inject",
+    "payload": "{\"signalId\":\"motor_voltage\",\"value\":400}",
+    "payloadType": "json",
+    "repeat": "5",
+    "wires": [["http_request"]]
+  },
+  {
+    "id": "http_request",
+    "type": "http request",
+    "method": "POST",
+    "url": "http://localhost:8082/api/signal",
+    "headers": {"Content-Type": "application/json"},
+    "wires": [[]]
+  }
+]
+```
+
+## Configuration
+
+### Threshold Customization
+
+Edit `src/config/signalConfig.ts` to modify:
+- Warning and alarm thresholds
+- Signal names and units
+- Timeout durations
+
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SIGNAL_TIMEOUT_MS` | 30000 | Time before signal shows as offline |
+| `HEARTBEAT_INTERVAL_MS` | 5000 | Connection check interval |
+
+## Architecture
+
+```
+┌─────────────────┐     HTTP POST     ┌──────────────────┐
+│    Node-RED     │ ────────────────► │  MotorGear       │
+│  (Data Source)  │                   │  Monitor         │
+└─────────────────┘                   │  (Dashboard)     │
+                                      └──────────────────┘
+         Both running on Raspberry Pi
+              Port 1880 (Node-RED)
+              Port 8082 (Dashboard)
+```
+
+## Development
+
+### Local Development
+```bash
+npm install
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+### Build for Production
+```bash
+npm run build
+```
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## Troubleshooting
 
-**Use GitHub Codespaces**
+### Dashboard shows "No Data"
+- Verify Node-RED is sending data to the correct endpoint
+- Check that signal IDs match exactly
+- Ensure the dashboard container can reach the API
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+### High CPU Usage
+- Reduce the update frequency in Node-RED
+- Check for any infinite loops in your flows
 
-## What technologies are used for this project?
+### Container Won't Start
+```bash
+# Check container logs
+docker logs motorgear-monitor
 
-This project is built with:
+# Verify port availability
+netstat -tlnp | grep 8082
+```
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## Technologies
 
-## How can I deploy this project?
+- React + TypeScript + Vite
+- Tailwind CSS + shadcn/ui
+- Docker + nginx
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+## License
 
-## Can I connect a custom domain to my Lovable project?
+MIT License
 
-Yes, you can!
+---
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+Built for industrial automation 🏭

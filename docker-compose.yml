@@ -1,0 +1,24 @@
+# MotorGear Monitor - Docker Compose for Raspberry Pi
+# Deploy alongside Node-RED for industrial monitoring
+
+version: '3.8'
+
+services:
+  motorgear-monitor:
+    build: .
+    container_name: motorgear-monitor
+    restart: unless-stopped
+    ports:
+      - "8082:80"
+    environment:
+      - NODE_ENV=production
+    networks:
+      - industrial-network
+    labels:
+      - "com.docker.compose.project=motorgear"
+      - "traefik.enable=false"
+
+networks:
+  industrial-network:
+    external: true
+    name: node-red_default  # Connect to Node-RED's network
