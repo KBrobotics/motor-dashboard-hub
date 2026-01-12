@@ -53,6 +53,7 @@ A lightweight industrial monitoring dashboard for electric motor and gearbox sys
 2. Name: `motorgear-monitor`
 3. Build method: **Repository**
 4. Repository URL: `https://github.com/yourusername/motorgear-monitor`
+5. Repository reference: `refs/heads/main`
 5. Click **Deploy the stack**
 
 ## Node-RED Integration
