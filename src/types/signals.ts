@@ -1,11 +1,5 @@
 export type SignalStatus = 'normal' | 'warning' | 'alarm' | 'offline';
 
-export interface SignalThresholds {
-  warning: number;
-  alarm: number;
-  direction: 'above' | 'below'; // 'above' means warning/alarm when value exceeds threshold
-}
-
 export interface Signal {
   id: string;
   name: string;
@@ -13,14 +7,8 @@ export interface Signal {
   unit: string;
   lastUpdate: Date | null;
   status: SignalStatus;
-  thresholds: SignalThresholds;
-  icon: string;
-}
-
-export interface SignalUpdate {
-  signalId: string;
-  value: number;
-  timestamp?: string;
+  warningThreshold: number;
+  alarmThreshold: number;
 }
 
 export interface SystemStatus {
