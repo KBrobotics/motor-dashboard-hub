@@ -1,15 +1,25 @@
 # ====== build stage ======
-FROM node:20-alpine AS build
+# Use a larger node image with more memory for npm install
+FROM node:20-bullseye AS build
 WORKDIR /app
 
-# dependencies (npm install works without package-lock.json)
-COPY package*.json ./
-RUN npm install
+# Increase Node memory limit for large dependency installs
+ENV NODE_OPTIONS="--max-old-space-size=4096"
 
-# source code
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies with legacy peer deps to avoid conflicts
+# Use --ignore-scripts to skip native binary compilation issues
+RUN npm install --legacy-peer-deps --ignore-scripts
+
+# Rebuild only necessary native modules
+RUN npm rebuild
+
+# Copy source code
 COPY . .
 
-# build Vite (generates /dist)
+# Build Vite (generates /dist)
 RUN npm run build
 
 # ====== runtime stage ======
@@ -32,7 +42,7 @@ RUN rm -f /etc/nginx/conf.d/default.conf && \
 '}' \
 > /etc/nginx/conf.d/app.conf
 
-# static files from build
+# Static files from build
 COPY --from=build /app/dist /usr/share/nginx/html
 
 EXPOSE 80
