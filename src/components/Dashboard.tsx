@@ -3,7 +3,7 @@ import { StatusBar } from '@/components/StatusBar';
 import { SignalCard } from '@/components/SignalCard';
 
 export function Dashboard() {
-  const { signals, systemStatus } = useSignals();
+  const { signals, systemStatus, demoMode, toggleDemoMode, reconnect, wsUrl } = useSignals();
 
   // Group signals by category
   const motorSignals = signals.filter((s) =>
@@ -15,7 +15,13 @@ export function Dashboard() {
 
   return (
     <div className="min-h-screen bg-background">
-      <StatusBar systemStatus={systemStatus} />
+      <StatusBar 
+        systemStatus={systemStatus} 
+        demoMode={demoMode}
+        onToggleDemo={toggleDemoMode}
+        onReconnect={reconnect}
+        wsUrl={wsUrl}
+      />
 
       <main className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
         {/* Motor Section */}
@@ -52,32 +58,47 @@ export function Dashboard() {
           </div>
         </section>
 
-        {/* API Info */}
+        {/* Node-RED Integration Info */}
         <section className="mt-12 p-4 rounded-lg bg-card border border-border">
           <div className="flex items-center gap-2 mb-3">
             <div className="w-2 h-2 rounded-full bg-primary" />
-            <h3 className="text-sm font-semibold text-foreground">Node-RED Integration</h3>
+            <h3 className="text-sm font-semibold text-foreground">Node-RED WebSocket Integration</h3>
           </div>
           <p className="text-xs text-muted-foreground mb-3">
-            Send POST requests to update individual signals. Each signal can be updated independently.
+            Configure a WebSocket Out node in Node-RED to send signals. The dashboard connects to:
+          </p>
+          <div className="font-mono text-xs bg-background/50 rounded p-3 overflow-x-auto mb-3">
+            <code className="text-primary">ws://&lt;raspberry-pi-ip&gt;:1880/ws/signals</code>
+          </div>
+          <p className="text-xs text-muted-foreground mb-3">
+            Send JSON messages with this format:
           </p>
           <div className="font-mono text-xs bg-background/50 rounded p-3 overflow-x-auto">
-            <code className="text-primary">POST /api/signal</code>
-            <pre className="text-muted-foreground mt-2">{`{
+            <pre className="text-muted-foreground">{`{
   "signalId": "motor_voltage",
   "value": 405.5,
-  "timestamp": "2024-01-15T10:30:00Z"  // optional
+  "timestamp": "2024-01-15T10:30:00Z"
 }`}</pre>
           </div>
           <p className="text-xs text-muted-foreground mt-3">
             Valid signal IDs: <code className="text-primary">motor_voltage</code>, <code className="text-primary">motor_current</code>, <code className="text-primary">motor_power</code>, <code className="text-primary">motor_temp</code>, <code className="text-primary">gearbox_temp</code>, <code className="text-primary">motor_vibration</code>, <code className="text-primary">gearbox_vibration</code>
           </p>
+          
+          {/* Custom WebSocket URL */}
+          <div className="mt-4 pt-4 border-t border-border/50">
+            <p className="text-xs text-muted-foreground mb-2">
+              To use a custom WebSocket URL, open browser console and run:
+            </p>
+            <div className="font-mono text-xs bg-background/50 rounded p-2 overflow-x-auto">
+              <code className="text-primary">localStorage.setItem('wsUrl', 'ws://your-url:port/path')</code>
+            </div>
+          </div>
         </section>
 
         {/* Footer */}
         <footer className="mt-8 text-center text-xs text-muted-foreground">
           <p>MotorGear Monitor • Industrial Monitoring Dashboard</p>
-          <p className="mt-1">Designed for Raspberry Pi • Node-RED Integration</p>
+          <p className="mt-1">Designed for Raspberry Pi • Node-RED WebSocket Integration</p>
         </footer>
       </main>
     </div>
