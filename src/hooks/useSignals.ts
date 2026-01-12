@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { Signal, SignalStatus, SignalUpdate, SystemStatus } from '@/types/signals';
 import { initialSignals, SIGNAL_TIMEOUT_MS, HEARTBEAT_INTERVAL_MS } from '@/config/signalConfig';
+import { useWebSocket } from './useWebSocket';
 
 function calculateStatus(value: number, thresholds: Signal['thresholds']): SignalStatus {
   const { warning, alarm, direction } = thresholds;
@@ -16,6 +17,22 @@ function calculateStatus(value: number, thresholds: Signal['thresholds']): Signa
   }
 }
 
+// Get WebSocket URL from current location or use default
+function getWebSocketUrl(): string {
+  // Check for custom WebSocket URL in localStorage (for configuration)
+  const customUrl = localStorage.getItem('wsUrl');
+  if (customUrl) {
+    return customUrl;
+  }
+  
+  // Default: Connect to Node-RED WebSocket on same host
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const host = window.location.hostname;
+  
+  // Node-RED typically runs on port 1880, WebSocket endpoint at /ws/signals
+  return `${protocol}//${host}:1880/ws/signals`;
+}
+
 export function useSignals() {
   const [signals, setSignals] = useState<Signal[]>(initialSignals);
   const [systemStatus, setSystemStatus] = useState<SystemStatus>({
@@ -23,6 +40,7 @@ export function useSignals() {
     lastHeartbeat: null,
     signalsReceived: 0,
   });
+  const [demoMode, setDemoMode] = useState(false);
 
   // Update a single signal
   const updateSignal = useCallback((update: SignalUpdate) => {
@@ -51,6 +69,22 @@ export function useSignals() {
     }));
   }, []);
 
+  // WebSocket connection
+  const wsUrl = getWebSocketUrl();
+  const { isConnected, reconnect } = useWebSocket({
+    url: wsUrl,
+    onSignalUpdate: updateSignal,
+    reconnectInterval: 5000,
+  });
+
+  // Update connection status from WebSocket
+  useEffect(() => {
+    setSystemStatus((prev) => ({
+      ...prev,
+      isConnected: isConnected || demoMode,
+    }));
+  }, [isConnected, demoMode]);
+
   // Check for stale signals and mark them offline
   useEffect(() => {
     const interval = setInterval(() => {
@@ -70,7 +104,7 @@ export function useSignals() {
 
       // Check system connection status
       setSystemStatus((prev) => {
-        if (prev.lastHeartbeat) {
+        if (prev.lastHeartbeat && !demoMode) {
           const age = now.getTime() - prev.lastHeartbeat.getTime();
           if (age > HEARTBEAT_INTERVAL_MS * 2) {
             return { ...prev, isConnected: false };
@@ -81,10 +115,12 @@ export function useSignals() {
     }, HEARTBEAT_INTERVAL_MS);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [demoMode]);
 
-  // Simulate data for demo purposes (remove in production)
+  // Demo mode: Simulate data when WebSocket is not connected
   useEffect(() => {
+    if (!demoMode) return;
+
     const demoInterval = setInterval(() => {
       const signalIds = [
         'motor_voltage',
@@ -134,11 +170,31 @@ export function useSignals() {
     }, 2000);
 
     return () => clearInterval(demoInterval);
-  }, [updateSignal]);
+  }, [demoMode, updateSignal]);
+
+  // Enable demo mode automatically after 10 seconds if not connected
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (!isConnected && !demoMode) {
+        console.log('[Demo] No WebSocket connection, enabling demo mode');
+        setDemoMode(true);
+      }
+    }, 10000);
+
+    return () => clearTimeout(timeout);
+  }, [isConnected, demoMode]);
+
+  const toggleDemoMode = useCallback(() => {
+    setDemoMode((prev) => !prev);
+  }, []);
 
   return {
     signals,
     systemStatus,
     updateSignal,
+    demoMode,
+    toggleDemoMode,
+    reconnect,
+    wsUrl,
   };
 }
