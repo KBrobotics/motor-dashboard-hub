@@ -1,23 +1,24 @@
 # ====== build stage ======
-# Use a larger node image with more memory for npm install
 FROM node:20-bullseye AS build
 WORKDIR /app
 
-# Increase Node memory limit for large dependency installs
+# Increase Node memory limit
 ENV NODE_OPTIONS="--max-old-space-size=4096"
 
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies with legacy peer deps to avoid conflicts
-# Use --ignore-scripts to skip native binary compilation issues
-RUN npm install --legacy-peer-deps --ignore-scripts
+# Replace SWC plugin with standard React plugin (SWC has ARM compatibility issues)
+RUN sed -i 's/"@vitejs\/plugin-react-swc": "[^"]*"/"@vitejs\/plugin-react": "^4.2.1"/g' package.json
 
-# Rebuild only necessary native modules
-RUN npm rebuild
+# Install dependencies
+RUN npm install --legacy-peer-deps
 
 # Copy source code
 COPY . .
+
+# Update vite config to use standard React plugin
+RUN sed -i 's/@vitejs\/plugin-react-swc/@vitejs\/plugin-react/g' vite.config.ts
 
 # Build Vite (generates /dist)
 RUN npm run build
@@ -35,7 +36,6 @@ RUN rm -f /etc/nginx/conf.d/default.conf && \
 '  root /usr/share/nginx/html;' \
 '  index index.html;' \
 '' \
-'  # SPA routing: serve index.html for unknown routes' \
 '  location / {' \
 '    try_files $uri $uri/ /index.html;' \
 '  }' \
